@@ -98,6 +98,8 @@ def safe_scrape_one(page: Any, config: SiteConfig, person_key: str, timeout_ms: 
 
 def scrape_taskboard(page: Any, config: SiteConfig, timeout_ms: int, source_url: str | None = None) -> list[ScrapeResult]:
     page.locator(".wit-card.taskboard-card").first.wait_for(state="visible", timeout=timeout_ms)
+    _collapse_then_expand_all(page, timeout_ms)
+    page.locator(".wit-card.taskboard-card").first.wait_for(state="visible", timeout=timeout_ms)
     sprint = _first_text(page, ".bolt-dropdown-expandable-button-label") or _sprint_from_url(source_url or page.url)
     year = parse_year_from_text(sprint) or parse_year_from_text(source_url or page.url)
 
@@ -160,6 +162,32 @@ def _sprint_from_url(url: str) -> str:
         value = match.group(1).replace("_", "-").replace(" ", "-")
         return f"Sprint {value}"
     return ""
+
+
+def _collapse_then_expand_all(page: Any, timeout_ms: int) -> None:
+    _click_button_text(page, "Collapse all", timeout_ms)
+    page.wait_for_timeout(250)
+    _click_button_text(page, "Expand all", timeout_ms)
+    page.wait_for_timeout(500)
+
+
+def _click_button_text(page: Any, text: str, timeout_ms: int) -> bool:
+    click_timeout = min(timeout_ms, 3000)
+    candidates = [
+        page.get_by_role("button", name=text),
+        page.locator("button").filter(has_text=text),
+    ]
+    for locator in candidates:
+        try:
+            if locator.count() == 0:
+                continue
+            button = locator.first
+            button.wait_for(state="visible", timeout=1000)
+            button.click(timeout=click_timeout)
+            return True
+        except Exception:
+            continue
+    return False
 
 
 def _first_text(scope: Any, selector: str) -> str:

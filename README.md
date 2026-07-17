@@ -223,6 +223,8 @@ If the new site needs a different navigation pattern, keep that change isolated 
 
 CEA Timetracking uses `mode: "taskboard"`. It opens all configured Azure DevOps sprint taskboards and exports visible task cards. Unlike the Wesser mode, it does not require an input Excel file.
 
+Before reading a taskboard, the scraper clicks `Collapse all` and then `Expand all` when those toolbar buttons are available. This normalizes the board state so task rows are expanded before cards are parsed.
+
 Example:
 
 ```powershell
