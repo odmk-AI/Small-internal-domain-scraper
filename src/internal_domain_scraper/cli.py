@@ -79,7 +79,22 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--timeout-ms", default=15000, type=int)
     parser.add_argument("--headless", action="store_true", help="Use only after a valid login exists in the profile.")
     parser.add_argument("--csv", default=None, type=Path, help="Optional extra CSV output path.")
+    parser.add_argument("--years", default=None, help="Optional comma-separated year filter for taskboard mode, for example 2024,2025.")
     return parser
+
+
+def _parse_year_filter(value: str | None) -> set[str]:
+    if not value:
+        return set()
+    return {part.strip() for part in value.split(",") if part.strip()}
+
+
+def _filtered_taskboard_urls(urls: tuple[str, ...], selected_years: set[str]) -> list[str]:
+    if not selected_years:
+        return list(urls)
+    from .config import parse_year_from_text
+
+    return [url for url in urls if parse_year_from_text(url) in selected_years]
 
 
 def main() -> int:
@@ -128,8 +143,18 @@ def main() -> int:
             input("Press Enter here after the search page is visible...")
 
         if config.mode == "taskboard":
-            results = safe_scrape_taskboard(page, config, args.timeout_ms)
-            print(f"{len(results)} taskboard tasks found.")
+            selected_years = _parse_year_filter(args.years)
+            taskboard_urls = _filtered_taskboard_urls(config.taskboard_urls, selected_years)
+            if not taskboard_urls:
+                print("No taskboard URLs match the requested year filter.", file=sys.stderr)
+                context.close()
+                return 2
+            for url_index, taskboard_url in enumerate(taskboard_urls, start=1):
+                if url_index > 1 or page.url != taskboard_url:
+                    page.goto(taskboard_url, wait_until="domcontentloaded", timeout=args.timeout_ms)
+                board_results = safe_scrape_taskboard(page, config, args.timeout_ms, taskboard_url)
+                results.extend(board_results)
+                print(f"{url_index}/{len(taskboard_urls)} taskboards processed. {len(board_results)} tasks found.")
         else:
             for index, person_key in enumerate(person_keys, start=1):
                 if person_key in existing and existing[person_key].status in {"ok", "blank"}:

@@ -104,6 +104,7 @@ On first run, a local Chromium browser window opens. Sign in to the internal sit
 --timeout-ms   Optional. Per-record timeout in milliseconds. Defaults to 15000.
 --headless     Optional. Run browser without UI after a valid login exists.
 --csv          Optional. Write an additional CSV output.
+--years        Optional. Taskboard-only comma-separated year filter, for example 2024,2025.
 ```
 
 
@@ -214,7 +215,7 @@ If the new site needs a different navigation pattern, keep that change isolated 
 
 ## CEA Timetracking
 
-CEA Timetracking uses `mode: "taskboard"`. It opens the configured Azure DevOps sprint taskboard and exports visible task cards. Unlike the Wesser mode, it does not require an input Excel file.
+CEA Timetracking uses `mode: "taskboard"`. It opens all configured Azure DevOps sprint taskboards and exports visible task cards. Unlike the Wesser mode, it does not require an input Excel file.
 
 Example:
 
@@ -233,6 +234,7 @@ local_outputs/Tasks_2026-07-17-CEATimetracking.xlsx
 Current CEA output columns:
 
 - Task ID
+- Year
 - Sprint
 - Parent Issue ID
 - Parent Issue Title
@@ -246,7 +248,7 @@ Current CEA output columns:
 
 `Assigned To` is personal data when real employees are assigned. Do not paste real taskboard HTML, names, emails, screenshots, outputs, or checkpoints into external tools.
 
-To change the sprint, edit `base_url` in `config/sites/cea_timetracking.json` to the approved sprint taskboard URL.
+To collect more years, add approved sprint taskboard URLs to `taskboard_urls` in `config/sites/cea_timetracking.json`. Each exported row includes `Year`, parsed from the sprint label or URL. Use `--years 2025,2026` to run only selected years.
 
 ## Checkpoints
 

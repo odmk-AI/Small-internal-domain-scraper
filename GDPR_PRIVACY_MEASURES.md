@@ -82,7 +82,7 @@ Generated output files, optional CSV exports, and checkpoints must be written in
 
 ### CEA Timetracking Taskboard Mode
 
-The CEA Timetracking configuration uses a visible Azure DevOps sprint taskboard as source. It extracts only configured task-card fields from the local browser session and writes them to the local output directory. The current extracted fields include task identifiers, task titles, parent issue references, board column, task state, assigned person, and configured work fields.
+The CEA Timetracking configuration uses one or multiple approved visible Azure DevOps sprint taskboards as source. It extracts only configured task-card fields from the local browser session and writes them to the local output directory. The current extracted fields include year, sprint, task identifiers, task titles, parent issue references, board column, task state, assigned person, and configured work fields. Each row includes a Year value so outputs can be filtered or pivoted by year without opening source pages again.
 
 `Assigned To` and task titles can be personal data or otherwise sensitive company data. Production use therefore requires an approved purpose, authorised access to the sprint board, and local-only handling of output and checkpoints. Real HTML snippets, task titles, employee names, email addresses, screenshots, tokens, or exported files must not be pasted into chat tools or committed to Git.
 

@@ -5,6 +5,12 @@
   "base_url": "https://dev.azure.com/wesser/WesserDE/_sprints/taskboard/CEA/WesserDE/Sprint%202026-11",
   "fields": [
     {
+      "key": "year",
+      "label": "Year",
+      "output_header": "Year",
+      "type": "text"
+    },
+    {
       "key": "sprint",
       "label": "Sprint",
       "output_header": "Sprint",
@@ -64,5 +70,8 @@
       "output_header": "Completed Work",
       "type": "text"
     }
+  ],
+  "taskboard_urls": [
+    "https://dev.azure.com/wesser/WesserDE/_sprints/taskboard/CEA/WesserDE/Sprint%202026-11"
   ]
 }

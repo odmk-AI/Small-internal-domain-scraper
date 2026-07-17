@@ -2,11 +2,12 @@ from __future__ import annotations
 
 import re
 import time
+from urllib.parse import unquote
 from typing import Any
 
 from playwright.sync_api import TimeoutError as PlaywrightTimeoutError
 
-from .config import FieldConfig, SiteConfig
+from .config import FieldConfig, SiteConfig, parse_year_from_text
 from .models import ScrapeResult
 
 
@@ -95,9 +96,10 @@ def safe_scrape_one(page: Any, config: SiteConfig, person_key: str, timeout_ms: 
         )
 
 
-def scrape_taskboard(page: Any, config: SiteConfig, timeout_ms: int) -> list[ScrapeResult]:
+def scrape_taskboard(page: Any, config: SiteConfig, timeout_ms: int, source_url: str | None = None) -> list[ScrapeResult]:
     page.locator(".wit-card.taskboard-card").first.wait_for(state="visible", timeout=timeout_ms)
-    sprint = _first_text(page, ".bolt-dropdown-expandable-button-label")
+    sprint = _first_text(page, ".bolt-dropdown-expandable-button-label") or _sprint_from_url(source_url or page.url)
+    year = parse_year_from_text(sprint) or parse_year_from_text(source_url or page.url)
 
     rows = page.locator("tr.full-height")
     results: list[ScrapeResult] = []
@@ -125,6 +127,7 @@ def scrape_taskboard(page: Any, config: SiteConfig, timeout_ms: int) -> list[Scr
                 seen_task_ids.add(task_id)
 
                 values = {
+                    "year": year,
                     "sprint": sprint,
                     "parent_issue_id": parent_id,
                     "parent_issue_title": parent_title,
@@ -141,11 +144,22 @@ def scrape_taskboard(page: Any, config: SiteConfig, timeout_ms: int) -> list[Scr
     return results
 
 
-def safe_scrape_taskboard(page: Any, config: SiteConfig, timeout_ms: int) -> list[ScrapeResult]:
+def safe_scrape_taskboard(
+    page: Any, config: SiteConfig, timeout_ms: int, source_url: str | None = None
+) -> list[ScrapeResult]:
     try:
-        return scrape_taskboard(page, config, timeout_ms)
+        return scrape_taskboard(page, config, timeout_ms, source_url)
     except PlaywrightTimeoutError:
         return []
+
+
+def _sprint_from_url(url: str) -> str:
+    decoded = unquote(url)
+    match = re.search(r"Sprint[ /%]*(20\d{2}[-_ ]?\d{1,2})", decoded)
+    if match:
+        value = match.group(1).replace("_", "-").replace(" ", "-")
+        return f"Sprint {value}"
+    return ""
 
 
 def _first_text(scope: Any, selector: str) -> str:
