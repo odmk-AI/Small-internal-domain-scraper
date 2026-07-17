@@ -6,7 +6,7 @@ import sys
 from datetime import date
 from pathlib import Path
 
-from playwright.sync_api import sync_playwright
+from playwright.sync_api import TimeoutError as PlaywrightTimeoutError, sync_playwright
 
 from .checkpoint import load_checkpoint, save_checkpoint
 from .config import load_site_config
@@ -102,6 +102,14 @@ def _filtered_taskboard_urls(urls: tuple[str, ...], selected_years: set[str]) ->
     return [url for url in urls if parse_year_from_text(url) in selected_years]
 
 
+def _write_failed_routes(path: Path, failed_routes: list[tuple[str, str]]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("w", encoding="utf-8") as handle:
+        handle.write("reason\turl\n")
+        for url, reason in failed_routes:
+            handle.write(f"{reason}\t{url}\n")
+
+
 def main() -> int:
     args = build_parser().parse_args()
     config = load_site_config(args.config.resolve())
@@ -125,6 +133,7 @@ def main() -> int:
     person_keys: list[str] = []
     existing: dict[str, ScrapeResult] = {}
     results: list[ScrapeResult] = []
+    failed_routes: list[tuple[str, str]] = []
 
     if config.mode == "person_search":
         input_xlsx = args.input.resolve()
@@ -156,9 +165,21 @@ def main() -> int:
                 context.close()
                 return 2
             for url_index, taskboard_url in enumerate(taskboard_urls, start=1):
-                if url_index > 1 or page.url != taskboard_url:
-                    page.goto(taskboard_url, wait_until="domcontentloaded", timeout=args.timeout_ms)
+                try:
+                    if url_index > 1 or page.url != taskboard_url:
+                        page.goto(taskboard_url, wait_until="domcontentloaded", timeout=args.timeout_ms)
+                except PlaywrightTimeoutError:
+                    failed_routes.append((taskboard_url, "navigation_timeout"))
+                    print(f"{url_index}/{len(taskboard_urls)} taskboards skipped. Reason: navigation_timeout")
+                    continue
+                except Exception as exc:
+                    failed_routes.append((taskboard_url, f"navigation_error:{type(exc).__name__}"))
+                    print(f"{url_index}/{len(taskboard_urls)} taskboards skipped. Reason: navigation_error")
+                    continue
+
                 board_results = safe_scrape_taskboard(page, config, args.timeout_ms, taskboard_url)
+                if not board_results:
+                    failed_routes.append((taskboard_url, "no_visible_task_cards"))
                 results.extend(board_results)
                 print(f"{url_index}/{len(taskboard_urls)} taskboards processed. {len(board_results)} tasks found.")
         else:
@@ -188,6 +209,13 @@ def main() -> int:
 
     if csv_path:
         write_output_csv(csv_path, id_header, config, results)
+
+    if config.mode == "taskboard":
+        failed_routes_path = output_path.with_suffix(".failed-routes.txt")
+        _write_failed_routes(failed_routes_path, failed_routes)
+        if failed_routes:
+            print(f"Failed/no-data taskboards: {len(failed_routes)}")
+            print(f"Failed routes report: {failed_routes_path}")
 
     print(f"Done: {len(results)} IDs.")
     print(f"Output: {output_path}")
