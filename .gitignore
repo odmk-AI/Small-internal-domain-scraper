@@ -3,6 +3,7 @@ __pycache__/
 *.py[cod]
 
 .wesser-browser-profile/
+local_outputs/
 *.checkpoint.json
 
 *.xlsx

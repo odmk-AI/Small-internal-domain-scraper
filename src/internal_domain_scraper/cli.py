@@ -13,6 +13,28 @@ from .models import ScrapeResult
 from .scraper import safe_scrape_one
 
 
+def resolve_local_output_path(requested_path: Path, output_dir: Path) -> Path:
+    local_output_dir = output_dir.resolve()
+    if str(local_output_dir).startswith("\\"):
+        raise ValueError("Output directory must be a local path, not a network/UNC path.")
+    local_output_dir.mkdir(parents=True, exist_ok=True)
+
+    if requested_path.is_absolute():
+        candidate = requested_path.resolve()
+    else:
+        candidate = (local_output_dir / requested_path).resolve()
+
+    try:
+        candidate.relative_to(local_output_dir)
+    except ValueError as exc:
+        raise ValueError(
+            f"Output paths must stay inside the local output directory: {local_output_dir}"
+        ) from exc
+
+    candidate.parent.mkdir(parents=True, exist_ok=True)
+    return candidate
+
+
 def default_config_path() -> Path:
     return Path(__file__).resolve().parents[2] / "config" / "sites" / "wesser.json"
 
@@ -24,6 +46,12 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--input", required=True, type=Path, help="Input XLSX path.")
     parser.add_argument("--output", required=True, type=Path, help="Output XLSX or CSV path.")
     parser.add_argument("--config", default=default_config_path(), type=Path, help="Site config JSON path.")
+    parser.add_argument(
+        "--output-dir",
+        default="local_outputs",
+        type=Path,
+        help="Local-only directory for outputs and checkpoints.",
+    )
     parser.add_argument("--sheet", default=None, help="Optional input worksheet name.")
     parser.add_argument(
         "--profile-dir",
@@ -41,7 +69,12 @@ def main() -> int:
     args = build_parser().parse_args()
     config = load_site_config(args.config.resolve())
     input_xlsx = args.input.resolve()
-    output_path = args.output.resolve()
+    try:
+        output_path = resolve_local_output_path(args.output, args.output_dir)
+        csv_path = resolve_local_output_path(args.csv, args.output_dir) if args.csv else None
+    except ValueError as exc:
+        print(str(exc), file=sys.stderr)
+        return 2
     checkpoint_path = output_path.with_suffix(".checkpoint.json")
 
     id_header, person_keys = read_person_keys(input_xlsx, args.sheet, config)
@@ -89,8 +122,8 @@ def main() -> int:
     else:
         write_output_xlsx(output_path, id_header, config, results)
 
-    if args.csv:
-        write_output_csv(args.csv.resolve(), id_header, config, results)
+    if csv_path:
+        write_output_csv(csv_path, id_header, config, results)
 
     print(f"Done: {len(results)} IDs.")
     print(f"Output: {output_path}")

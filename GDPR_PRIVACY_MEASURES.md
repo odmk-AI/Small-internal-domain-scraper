@@ -28,7 +28,7 @@ Local input XLSX
   -> local browser profile/session
   -> internal website search/detail page
   -> local parser extracts configured fields only
-  -> local output XLSX/CSV and optional local checkpoint
+  -> local-only output directory with XLSX/CSV and optional local checkpoint
 ```
 
 No intentional external transfer is performed by this project. The scraper itself does not send input files, output files, page text, HTML, screenshots, or extracted values to OpenAI, GitHub, or any other third party.
@@ -74,6 +74,11 @@ The scraper runs on the user’s machine. It reads local input files and writes 
 
 Fields are explicitly listed in `config/sites/*.json`. The scraper extracts only configured labels and writes only configured output columns.
 
+
+### Dedicated Local Output Directory
+
+Generated output files, optional CSV exports, and checkpoints must be written inside the configured local output directory. The default is `local_outputs/`, which is ignored by Git. Bare output filenames are automatically resolved into this directory. Absolute output paths or relative traversal paths outside the configured output directory are rejected.
+
 ### Pseudonymous Input Support
 
 The preferred input header is `PseudoID`. This allows the operating team to keep direct identity data outside this tool.
@@ -105,6 +110,7 @@ The code does not intentionally write:
 .venv/
 .browser-profile/
 .wesser-browser-profile/
+local_outputs/
 *.xlsx
 *.xls
 *.csv
@@ -135,7 +141,7 @@ The software controls are not sufficient by themselves. The operating company sh
 - The user running the scraper is authorised to view each queried record.
 - The processing purpose is documented and approved.
 - The input list contains only IDs needed for that approved purpose.
-- The output location has appropriate access controls.
+- The local output directory has appropriate access controls and is not synced to uncontrolled cloud, email, chat, or shared drives.
 - The output and checkpoint retention period is defined.
 - The local browser profile is protected and deleted when no longer needed.
 - Internal website scraping is allowed by company policy and the website owner.
@@ -148,7 +154,7 @@ Before running:
 
 - Use an input file with only `PseudoID` where feasible.
 - Do not include names, email addresses, addresses, or performance data in the input file.
-- Store input and output in an approved local or company-controlled location.
+- Store input in an approved local or company-controlled location and write output only into the configured local output directory.
 - Confirm the user account has a legitimate need to access the records.
 - Confirm `.gitignore` is active with `git status --ignored`.
 
@@ -165,7 +171,7 @@ After running:
 - Validate the output contains only expected columns.
 - Delete checkpoint files if resume is no longer required.
 - Delete or protect the browser profile according to internal policy.
-- Move output to the approved storage location.
+- Move output to the approved storage location only if required and approved.
 - Delete local copies when no longer needed.
 - Do not commit generated files.
 
@@ -178,6 +184,7 @@ Even with these controls, risk remains:
 - The internal website may log every accessed record.
 - Browser profile folders may contain session data.
 - Output files still contain personal or pseudonymous data.
+- The local output directory is protected by location and Git exclusion, but operating system access controls and disk encryption remain organisational requirements.
 - A developer could weaken the controls by adding broad logging or committing ignored files with force.
 
 These risks require organisational controls, access restrictions, and review.
@@ -207,7 +214,8 @@ Developers changing this project should follow these rules:
 4. Keep output columns limited to configured fields.
 5. Treat `PseudoID` as personal data unless the company confirms it is truly anonymous.
 6. Review `.gitignore` when adding new output formats.
-7. Add a privacy review note to pull requests that change extraction scope, logging, storage, or browser behavior.
+7. Keep generated outputs and checkpoints constrained to the configured local output directory.
+8. Add a privacy review note to pull requests that change extraction scope, logging, storage, or browser behavior.
 
 ## Recommended Pull Request Privacy Review
 

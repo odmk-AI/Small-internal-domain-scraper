@@ -19,6 +19,8 @@ Output:
 
 No names, addresses, email addresses, full profile text, HTML dumps, screenshots, or browser session data are intentionally written by the scraper.
 
+Generated outputs and checkpoints are constrained to a dedicated local output directory. The default is `local_outputs/`, which is ignored by Git and should remain local to the operator's machine.
+
 ## Repository Layout
 
 ```text
@@ -66,7 +68,7 @@ XLSX output:
 ```powershell
 .\.venv\Scripts\python.exe .\wesser_strl_scraper.py `
   --input ".\Liste 2026-07-16.xlsx" `
-  --output ".\Ausgabe_Werte.xlsx"
+  --output "Ausgabe_Werte.xlsx"
 ```
 
 CSV output:
@@ -74,7 +76,7 @@ CSV output:
 ```powershell
 .\.venv\Scripts\python.exe .\wesser_strl_scraper.py `
   --input ".\Liste 2026-07-16.xlsx" `
-  --output ".\Ausgabe_Werte.csv"
+  --output "Ausgabe_Werte.csv"
 ```
 
 Using the installed console script:
@@ -83,7 +85,7 @@ Using the installed console script:
 .\.venv\Scripts\internal-domain-scraper.exe `
   --config ".\config\sites\wesser.json" `
   --input ".\Liste 2026-07-16.xlsx" `
-  --output ".\Ausgabe_Werte.xlsx"
+  --output "Ausgabe_Werte.xlsx"
 ```
 
 On first run, a local Chromium browser window opens. Sign in to the internal site in that browser. If the script prompts you, press Enter after the search page is visible.
@@ -93,6 +95,7 @@ On first run, a local Chromium browser window opens. Sign in to the internal sit
 ```text
 --input        Required. Local input XLSX path.
 --output       Required. Output XLSX or CSV path.
+--output-dir   Optional. Local output directory. Defaults to local_outputs.
 --config       Optional. Site config JSON path. Defaults to config/sites/wesser.json.
 --sheet        Optional. Input worksheet name. Defaults to first worksheet.
 --profile-dir  Optional. Local browser profile directory. Defaults to .browser-profile.
@@ -100,6 +103,16 @@ On first run, a local Chromium browser window opens. Sign in to the internal sit
 --headless     Optional. Run browser without UI after a valid login exists.
 --csv          Optional. Write an additional CSV output.
 ```
+
+
+### Local Output Directory Rules
+
+`--output` and `--csv` are constrained to the configured local output directory:
+
+- Bare filenames such as `Ausgabe_Werte.xlsx` are written to `local_outputs/Ausgabe_Werte.xlsx`.
+- Relative paths such as `monthly/Ausgabe_Werte.xlsx` are written under `local_outputs/monthly/`.
+- Absolute paths or `..` traversal outside the output directory are rejected.
+- Checkpoints are written beside the output file inside the same local output directory.
 
 ## Site Configuration
 
@@ -185,17 +198,17 @@ No Python change is required if the field appears as a visible label followed by
 .\.venv\Scripts\python.exe .\wesser_strl_scraper.py `
   --config ".\config\sites\new-site.json" `
   --input ".\Input.xlsx" `
-  --output ".\Output.xlsx"
+  --output "Output.xlsx"
 ```
 
 If the new site needs a different navigation pattern, keep that change isolated in `src/internal_domain_scraper/scraper.py`.
 
 ## Checkpoints
 
-The scraper writes a checkpoint beside the output file:
+The scraper writes a checkpoint beside the output file inside `local_outputs/`:
 
 ```text
-Ausgabe_Werte.checkpoint.json
+local_outputs/Ausgabe_Werte.checkpoint.json
 ```
 
 The checkpoint allows a run to resume if interrupted. It is ignored by Git and should be deleted after a successful run if no longer needed.
@@ -215,6 +228,7 @@ The repository intentionally ignores:
 - `.venv/`
 - `.browser-profile/`
 - `.wesser-browser-profile/`
+- `local_outputs/`
 - `*.xlsx`
 - `*.xls`
 - `*.csv`
