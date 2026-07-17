@@ -70,6 +70,8 @@ def write_output_xlsx(output_xlsx: Path, id_header: str, config: SiteConfig, res
         sheet.column_dimensions[column_letter].width = max(20, len(field.output_header) + 2)
 
     sheet.column_dimensions["A"].width = max(16, len(id_header) + 2)
+    if config.mode == "taskboard":
+        _append_taskboard_hours_summary(workbook, results)
     workbook.save(output_xlsx)
 
 
@@ -88,3 +90,55 @@ def write_output_csv(output_csv: Path, id_header: str, config: SiteConfig, resul
                 else:
                     row.append(str(value))
             writer.writerow(row)
+
+
+def _append_taskboard_hours_summary(workbook: Workbook, results: list[ScrapeResult]) -> None:
+    sheet = workbook.create_sheet("Hours per Sprint")
+    headers = ["Assigned To", "Year", "Sprint", "Sum Completed", "Sum Open"]
+    sheet.append(headers)
+
+    totals: dict[tuple[str, str, str], dict[str, float]] = {}
+    for result in results:
+        assigned_to = str(result.values.get("assigned_to") or "").strip()
+        sprint = str(result.values.get("sprint") or "").strip()
+        year = str(result.values.get("year") or "").strip()
+        if not assigned_to and not sprint:
+            continue
+
+        key = (assigned_to, year, sprint)
+        if key not in totals:
+            totals[key] = {"completed": 0.0, "open": 0.0}
+        totals[key]["completed"] += _parse_hours(result.values.get("completed_work"))
+        totals[key]["open"] += _parse_hours(result.values.get("remaining_work"))
+
+    for assigned_to, year, sprint in sorted(totals):
+        sheet.append(
+            [
+                assigned_to,
+                year,
+                sprint,
+                totals[(assigned_to, year, sprint)]["completed"],
+                totals[(assigned_to, year, sprint)]["open"],
+            ]
+        )
+
+    for column_index, header in enumerate(headers, start=1):
+        column_letter = sheet.cell(row=1, column=column_index).column_letter
+        sheet.column_dimensions[column_letter].width = max(14, len(header) + 2)
+
+    for row in sheet.iter_rows(min_row=2, min_col=4, max_col=5):
+        for cell in row:
+            cell.number_format = "0.00"
+
+
+def _parse_hours(value: Any) -> float:
+    if value is None:
+        return 0.0
+    if isinstance(value, (float, int)):
+        return float(value)
+
+    text = str(value).strip().replace(",", ".")
+    match = re.search(r"-?\d+(?:\.\d+)?", text)
+    if not match:
+        return 0.0
+    return float(match.group(0))

@@ -254,6 +254,11 @@ Current CEA output columns:
 - Remaining Work
 - Completed Work
 
+For XLSX output, CEA Timetracking also creates a second worksheet named `Hours per Sprint`. It aggregates task hours by `Assigned To`, `Year`, and `Sprint` with:
+
+- `Sum Completed`: sum of `Completed Work`
+- `Sum Open`: sum of `Remaining Work`
+
 `Assigned To` is personal data when real employees are assigned. Do not paste real taskboard HTML, names, emails, screenshots, outputs, or checkpoints into external tools.
 
 `config/sites/cea_timetracking.json` currently contains sprintboard URLs from `Sprint 2024-18` through `Sprint 2026-21`. The list assumes a maximum of 18 sprints per year plus 3 safety slots. The scraper tests each configured sprintboard incrementally; sprintboards that do not exist or contain no visible task cards yield no rows and the run continues with the next URL. Those routes are reported in a local `*.failed-routes.txt` file beside the output. Each exported row includes `Year`, parsed from the sprint label or URL. Use `--years 2025,2026` to run only selected years.
