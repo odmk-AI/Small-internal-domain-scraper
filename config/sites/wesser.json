@@ -1,0 +1,36 @@
+{
+  "site_name": "Wesser",
+  "base_url": "https://my.wesser.de/FundraiserList",
+  "id_headers": [
+    "PseudoID",
+    "Fundraiser Number",
+    "FundraiserNumber",
+    "Fundraiser-Number",
+    "MA-Nummer",
+    "MA Nummer"
+  ],
+  "search": {
+    "open_shortcut": "Control+M",
+    "input_selector": "input[placeholder^=\"Fundraiser\"]",
+    "submit_selector": "button.btn-primary",
+    "loaded_markers": [
+      "F# {id}",
+      "Ma-Nummer\n{id}",
+      "Ma-Nummer\r\n{id}"
+    ]
+  },
+  "fields": [
+    {
+      "key": "st_rl_percent",
+      "label": "Individuelle StRL%",
+      "output_header": "Individuelle StRL%",
+      "type": "percent"
+    },
+    {
+      "key": "advance_percent",
+      "label": "Individuelle Vorschuss%",
+      "output_header": "Individuelle Vorschuss%",
+      "type": "percent"
+    }
+  ]
+}
