@@ -1,0 +1,102 @@
+from __future__ import annotations
+
+import argparse
+import sys
+from pathlib import Path
+
+from playwright.sync_api import sync_playwright
+
+from .checkpoint import load_checkpoint, save_checkpoint
+from .config import load_site_config
+from .excel_io import read_person_keys, write_output_csv, write_output_xlsx
+from .models import ScrapeResult
+from .scraper import safe_scrape_one
+
+
+def default_config_path() -> Path:
+    return Path(__file__).resolve().parents[2] / "config" / "sites" / "wesser.json"
+
+
+def build_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(
+        description="Local configurable scraper for internal domain field extraction."
+    )
+    parser.add_argument("--input", required=True, type=Path, help="Input XLSX path.")
+    parser.add_argument("--output", required=True, type=Path, help="Output XLSX or CSV path.")
+    parser.add_argument("--config", default=default_config_path(), type=Path, help="Site config JSON path.")
+    parser.add_argument("--sheet", default=None, help="Optional input worksheet name.")
+    parser.add_argument(
+        "--profile-dir",
+        default=".browser-profile",
+        type=Path,
+        help="Local browser profile directory. Sign in there on first run.",
+    )
+    parser.add_argument("--timeout-ms", default=15000, type=int)
+    parser.add_argument("--headless", action="store_true", help="Use only after a valid login exists in the profile.")
+    parser.add_argument("--csv", default=None, type=Path, help="Optional extra CSV output path.")
+    return parser
+
+
+def main() -> int:
+    args = build_parser().parse_args()
+    config = load_site_config(args.config.resolve())
+    input_xlsx = args.input.resolve()
+    output_path = args.output.resolve()
+    checkpoint_path = output_path.with_suffix(".checkpoint.json")
+
+    id_header, person_keys = read_person_keys(input_xlsx, args.sheet, config)
+    if not person_keys:
+        print("No valid IDs found.", file=sys.stderr)
+        return 2
+
+    existing = load_checkpoint(checkpoint_path, config)
+    results: list[ScrapeResult] = []
+
+    with sync_playwright() as playwright:
+        context = playwright.chromium.launch_persistent_context(
+            user_data_dir=str(args.profile_dir.resolve()),
+            headless=args.headless,
+            viewport={"width": 1400, "height": 1000},
+        )
+        page = context.pages[0] if context.pages else context.new_page()
+
+        page.goto(config.base_url, wait_until="domcontentloaded", timeout=args.timeout_ms)
+        if "login" in page.url.lower() or "signin" in page.url.lower():
+            print(f"Please sign in to {config.site_name} in the opened browser.")
+            input("Press Enter here after the search page is visible...")
+
+        for index, person_key in enumerate(person_keys, start=1):
+            if person_key in existing and existing[person_key].status in {"ok", "blank"}:
+                result = existing[person_key]
+            else:
+                result = safe_scrape_one(page, config, person_key, args.timeout_ms)
+
+            results.append(result)
+            save_checkpoint(checkpoint_path, config, results)
+
+            if index % 10 == 0 or index == len(person_keys):
+                counts = {
+                    field.output_header: sum(1 for item in results if item.values.get(field.key) is not None)
+                    for field in config.fields
+                }
+                counts_text = ", ".join(f"{name}: {count}" for name, count in counts.items())
+                print(f"{index}/{len(person_keys)} processed. Found values: {counts_text}.")
+
+        context.close()
+
+    if output_path.suffix.casefold() == ".csv":
+        write_output_csv(output_path, id_header, config, results)
+    else:
+        write_output_xlsx(output_path, id_header, config, results)
+
+    if args.csv:
+        write_output_csv(args.csv.resolve(), id_header, config, results)
+
+    print(f"Done: {len(results)} IDs.")
+    print(f"Output: {output_path}")
+    print(f"Checkpoint: {checkpoint_path}")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
