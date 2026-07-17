@@ -1,21 +1,48 @@
 # Small Internal Domain Scraper
 
-Local configurable scraper for internal web pages. The first site config is for Wesser and extracts:
+Small Internal Domain Scraper is a local, configurable browser scraper for extracting a small set of values from internal web applications into XLSX or CSV output.
 
+The first supported site configuration is Wesser. It reads a local input Excel file containing pseudonymous IDs or fundraiser numbers, opens the corresponding record in the browser, extracts configured percent fields, and writes a minimal result file.
+
+## Current Wesser Use Case
+
+Input:
+
+- Local `.xlsx`
+- One ID column named `PseudoID` or `Fundraiser Number`
+
+Output:
+
+- The same ID column
 - `Individuelle StRL%`
 - `Individuelle Vorschuss%`
 
-The project is designed so future site, selector, or field changes live mostly in JSON config instead of Python code.
+No names, addresses, email addresses, full profile text, HTML dumps, screenshots, or browser session data are intentionally written by the scraper.
 
-## Safety Model
+## Repository Layout
 
-- Run locally only.
-- Do not commit input Excel files, output files, checkpoints, virtual environments, or browser profiles.
-- `.gitignore` excludes local data files (`*.xlsx`, `*.csv`), checkpoints, and browser profiles.
-- The scraper writes only the configured ID column and configured extracted fields.
-- It does not intentionally store page HTML, screenshots, names, addresses, emails, or full profile text.
+```text
+.
+├── config/
+│   └── sites/
+│       └── wesser.json          # Site URL, selectors, record markers, fields
+├── src/
+│   └── internal_domain_scraper/
+│       ├── checkpoint.py        # Resume file handling
+│       ├── cli.py               # Command line entrypoint
+│       ├── config.py            # JSON config models/loaders
+│       ├── excel_io.py          # Input/output spreadsheet and CSV handling
+│       ├── models.py            # Shared result dataclass
+│       └── scraper.py           # Playwright navigation and parsing logic
+├── .gitignore                   # Blocks local data, browser profiles, outputs
+├── pyproject.toml               # Package metadata and console script
+├── requirements.txt             # Editable local install
+└── wesser_strl_scraper.py        # Backwards-compatible entrypoint
+```
 
-## Install
+## Installation
+
+Run from the project directory:
 
 ```powershell
 cd "D:\Codex\Small Scraper"
@@ -25,7 +52,7 @@ pip install -r requirements.txt
 python -m playwright install chromium
 ```
 
-If PowerShell blocks activation, use the venv Python directly:
+If PowerShell blocks activation, use the virtual environment Python directly:
 
 ```powershell
 .\.venv\Scripts\python.exe -m pip install -r requirements.txt
@@ -50,38 +77,109 @@ CSV output:
   --output ".\Ausgabe_Werte.csv"
 ```
 
-On first run, a browser window opens. Sign in locally, then press Enter in the terminal if prompted.
+Using the installed console script:
 
-## Configure A Site
-
-Site configuration lives in:
-
-```text
-config/sites/wesser.json
+```powershell
+.\.venv\Scripts\internal-domain-scraper.exe `
+  --config ".\config\sites\wesser.json" `
+  --input ".\Liste 2026-07-16.xlsx" `
+  --output ".\Ausgabe_Werte.xlsx"
 ```
 
-Important sections:
+On first run, a local Chromium browser window opens. Sign in to the internal site in that browser. If the script prompts you, press Enter after the search page is visible.
 
-- `base_url`: search page URL
-- `id_headers`: accepted input Excel header names
-- `search.open_shortcut`: shortcut that opens the search screen, e.g. `Control+M`
-- `search.input_selector`: selector for the ID/Fundraiser search input
-- `search.submit_selector`: selector for the search button
-- `search.loaded_markers`: text markers proving the requested record is loaded
-- `fields`: labels and output headers to extract
+## Command Line Options
 
-To add another field, add a new object to `fields`:
+```text
+--input        Required. Local input XLSX path.
+--output       Required. Output XLSX or CSV path.
+--config       Optional. Site config JSON path. Defaults to config/sites/wesser.json.
+--sheet        Optional. Input worksheet name. Defaults to first worksheet.
+--profile-dir  Optional. Local browser profile directory. Defaults to .browser-profile.
+--timeout-ms   Optional. Per-record timeout in milliseconds. Defaults to 15000.
+--headless     Optional. Run browser without UI after a valid login exists.
+--csv          Optional. Write an additional CSV output.
+```
+
+## Site Configuration
+
+Site-specific behavior lives in JSON, not in the core scraper code.
+
+Example: `config/sites/wesser.json`
 
 ```json
 {
-  "key": "example_percent",
-  "label": "Example %",
-  "output_header": "Example %",
+  "site_name": "Wesser",
+  "base_url": "https://my.wesser.de/FundraiserList",
+  "id_headers": ["PseudoID", "Fundraiser Number"],
+  "search": {
+    "open_shortcut": "Control+M",
+    "input_selector": "input[placeholder^=\"Fundraiser\"]",
+    "submit_selector": "button.btn-primary",
+    "loaded_markers": ["F# {id}", "Ma-Nummer\n{id}"]
+  },
+  "fields": [
+    {
+      "key": "st_rl_percent",
+      "label": "Individuelle StRL%",
+      "output_header": "Individuelle StRL%",
+      "type": "percent"
+    }
+  ]
+}
+```
+
+### Configuration Fields
+
+`site_name`  
+Human-readable site identifier. Also used to validate checkpoints.
+
+`base_url`  
+Search page URL used as fallback if the keyboard shortcut does not open the search screen.
+
+`id_headers`  
+Accepted input Excel header names. The first matching header is used as the ID column.
+
+`search.open_shortcut`  
+Keyboard shortcut that opens the search view from a detail page, for example `Control+M`.
+
+`search.input_selector`  
+CSS selector for the search input.
+
+`search.submit_selector`  
+CSS selector for the search/submit button.
+
+`search.loaded_markers`  
+Text markers used to confirm that the requested record is loaded. Use `{id}` as placeholder.
+
+`fields`  
+List of values to extract. Each field has:
+
+- `key`: stable internal key used in checkpoints
+- `label`: exact visible label to parse after
+- `output_header`: column header in output files
+- `type`: currently `percent` or `text`
+
+## Adding Or Changing Fields
+
+To add a new percent field, edit `config/sites/wesser.json`:
+
+```json
+{
+  "key": "new_percent_field",
+  "label": "Visible Label %",
+  "output_header": "Visible Label %",
   "type": "percent"
 }
 ```
 
-To add another site, copy `config/sites/wesser.json`, edit it, then run:
+No Python change is required if the field appears as a visible label followed by the value in the page text.
+
+## Adding Another Site
+
+1. Copy `config/sites/wesser.json` to a new file.
+2. Change `base_url`, selectors, loaded markers, and field labels.
+3. Run with `--config`.
 
 ```powershell
 .\.venv\Scripts\python.exe .\wesser_strl_scraper.py `
@@ -90,12 +188,68 @@ To add another site, copy `config/sites/wesser.json`, edit it, then run:
   --output ".\Output.xlsx"
 ```
 
-## Local Artifacts
+If the new site needs a different navigation pattern, keep that change isolated in `src/internal_domain_scraper/scraper.py`.
 
-The scraper may create:
+## Checkpoints
 
-- `.browser-profile/` or a custom `--profile-dir`
+The scraper writes a checkpoint beside the output file:
+
+```text
+Ausgabe_Werte.checkpoint.json
+```
+
+The checkpoint allows a run to resume if interrupted. It is ignored by Git and should be deleted after a successful run if no longer needed.
+
+Checkpoint compatibility is guarded by:
+
+- checkpoint version
+- configured site name
+- configured field keys
+
+If the site config changes materially, old checkpoints are ignored.
+
+## Git And Local Data
+
+The repository intentionally ignores:
+
+- `.venv/`
+- `.browser-profile/`
+- `.wesser-browser-profile/`
+- `*.xlsx`
+- `*.xls`
+- `*.csv`
 - `*.checkpoint.json`
-- output `.xlsx` or `.csv`
+- temporary Excel lock files such as `~$...`
 
-These are intentionally ignored by Git.
+Before committing, verify:
+
+```powershell
+git status --ignored
+```
+
+Only source code, docs, and config should be tracked.
+
+## Troubleshooting
+
+`ModuleNotFoundError: No module named 'openpyxl'`  
+Install dependencies in the virtual environment:
+
+```powershell
+.\.venv\Scripts\python.exe -m pip install -r requirements.txt
+```
+
+Browser opens but is not signed in  
+Sign in manually in the opened browser. The login is stored only in the local profile directory.
+
+No IDs found  
+Check that the input sheet has a header listed in `id_headers`, such as `PseudoID`.
+
+Timeouts  
+Increase `--timeout-ms`, verify the search selectors in the config, or run non-headless to observe the browser.
+
+Wrong or empty values  
+Check the field `label` in the site config. The parser expects the visible label followed by the value in the page text.
+
+## Privacy Documentation
+
+See [GDPR_PRIVACY_MEASURES.md](./GDPR_PRIVACY_MEASURES.md) for the project’s data protection design, restrictions, residual risks, and operational checklist.
