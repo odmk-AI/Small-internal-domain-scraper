@@ -79,6 +79,13 @@ Fields are explicitly listed in `config/sites/*.json`. The scraper extracts only
 
 Generated output files, optional CSV exports, and checkpoints must be written inside the configured local output directory. The default is `local_outputs/`, which is ignored by Git. Bare output filenames are automatically resolved into this directory. Absolute output paths or relative traversal paths outside the configured output directory are rejected. Output filenames also include the run date and configured project nick, so local files can be attributed to the correct extraction context without opening the file.
 
+
+### CEA Timetracking Taskboard Mode
+
+The CEA Timetracking configuration uses a visible Azure DevOps sprint taskboard as source. It extracts only configured task-card fields from the local browser session and writes them to the local output directory. The current extracted fields include task identifiers, task titles, parent issue references, board column, task state, assigned person, and configured work fields.
+
+`Assigned To` and task titles can be personal data or otherwise sensitive company data. Production use therefore requires an approved purpose, authorised access to the sprint board, and local-only handling of output and checkpoints. Real HTML snippets, task titles, employee names, email addresses, screenshots, tokens, or exported files must not be pasted into chat tools or committed to Git.
+
 ### Pseudonymous Input Support
 
 The preferred input header is `PseudoID`. This allows the operating team to keep direct identity data outside this tool.

@@ -12,7 +12,7 @@ from .checkpoint import load_checkpoint, save_checkpoint
 from .config import load_site_config
 from .excel_io import read_person_keys, write_output_csv, write_output_xlsx
 from .models import ScrapeResult
-from .scraper import safe_scrape_one
+from .scraper import safe_scrape_one, safe_scrape_taskboard
 
 
 def normalise_filename_part(value: str) -> str:
@@ -60,7 +60,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         description="Local configurable scraper for internal domain field extraction."
     )
-    parser.add_argument("--input", required=True, type=Path, help="Input XLSX path.")
+    parser.add_argument("--input", required=False, type=Path, help="Input XLSX path. Required for person_search mode.")
     parser.add_argument("--output", required=True, type=Path, help="Output XLSX or CSV path.")
     parser.add_argument("--config", default=default_config_path(), type=Path, help="Site config JSON path.")
     parser.add_argument(
@@ -85,7 +85,14 @@ def build_parser() -> argparse.ArgumentParser:
 def main() -> int:
     args = build_parser().parse_args()
     config = load_site_config(args.config.resolve())
-    input_xlsx = args.input.resolve()
+    if config.mode not in {"person_search", "taskboard"}:
+        print(f"Unsupported mode: {config.mode}", file=sys.stderr)
+        return 2
+
+    if config.mode == "person_search" and not args.input:
+        print("--input is required for person_search mode.", file=sys.stderr)
+        return 2
+
     try:
         output_path = resolve_local_output_path(args.output, args.output_dir, config.output_nick)
         csv_path = resolve_local_output_path(args.csv, args.output_dir, config.output_nick) if args.csv else None
@@ -94,13 +101,18 @@ def main() -> int:
         return 2
     checkpoint_path = output_path.with_suffix(".checkpoint.json")
 
-    id_header, person_keys = read_person_keys(input_xlsx, args.sheet, config)
-    if not person_keys:
-        print("No valid IDs found.", file=sys.stderr)
-        return 2
-
-    existing = load_checkpoint(checkpoint_path, config)
+    id_header = "Task ID" if config.mode == "taskboard" else config.id_headers[0]
+    person_keys: list[str] = []
+    existing: dict[str, ScrapeResult] = {}
     results: list[ScrapeResult] = []
+
+    if config.mode == "person_search":
+        input_xlsx = args.input.resolve()
+        id_header, person_keys = read_person_keys(input_xlsx, args.sheet, config)
+        if not person_keys:
+            print("No valid IDs found.", file=sys.stderr)
+            return 2
+        existing = load_checkpoint(checkpoint_path, config)
 
     with sync_playwright() as playwright:
         context = playwright.chromium.launch_persistent_context(
@@ -115,22 +127,26 @@ def main() -> int:
             print(f"Please sign in to {config.site_name} in the opened browser.")
             input("Press Enter here after the search page is visible...")
 
-        for index, person_key in enumerate(person_keys, start=1):
-            if person_key in existing and existing[person_key].status in {"ok", "blank"}:
-                result = existing[person_key]
-            else:
-                result = safe_scrape_one(page, config, person_key, args.timeout_ms)
+        if config.mode == "taskboard":
+            results = safe_scrape_taskboard(page, config, args.timeout_ms)
+            print(f"{len(results)} taskboard tasks found.")
+        else:
+            for index, person_key in enumerate(person_keys, start=1):
+                if person_key in existing and existing[person_key].status in {"ok", "blank"}:
+                    result = existing[person_key]
+                else:
+                    result = safe_scrape_one(page, config, person_key, args.timeout_ms)
 
-            results.append(result)
-            save_checkpoint(checkpoint_path, config, results)
+                results.append(result)
+                save_checkpoint(checkpoint_path, config, results)
 
-            if index % 10 == 0 or index == len(person_keys):
-                counts = {
-                    field.output_header: sum(1 for item in results if item.values.get(field.key) is not None)
-                    for field in config.fields
-                }
-                counts_text = ", ".join(f"{name}: {count}" for name, count in counts.items())
-                print(f"{index}/{len(person_keys)} processed. Found values: {counts_text}.")
+                if index % 10 == 0 or index == len(person_keys):
+                    counts = {
+                        field.output_header: sum(1 for item in results if item.values.get(field.key) is not None)
+                        for field in config.fields
+                    }
+                    counts_text = ", ".join(f"{name}: {count}" for name, count in counts.items())
+                    print(f"{index}/{len(person_keys)} processed. Found values: {counts_text}.")
 
         context.close()
 
@@ -144,7 +160,8 @@ def main() -> int:
 
     print(f"Done: {len(results)} IDs.")
     print(f"Output: {output_path}")
-    print(f"Checkpoint: {checkpoint_path}")
+    if config.mode == "person_search":
+        print(f"Checkpoint: {checkpoint_path}")
     return 0
 
 

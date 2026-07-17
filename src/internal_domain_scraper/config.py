@@ -28,31 +28,37 @@ class SiteConfig:
     output_nick: str
     base_url: str
     id_headers: tuple[str, ...]
-    search: SearchConfig
+    search: SearchConfig | None
     fields: tuple[FieldConfig, ...]
+    mode: str = "person_search"
 
 
 def load_site_config(path: Path) -> SiteConfig:
-    payload: dict[str, Any] = json.loads(path.read_text(encoding="utf-8"))
-    search_payload = payload["search"]
-    return SiteConfig(
-        site_name=str(payload["site_name"]),
-        output_nick=str(payload.get("output_nick", payload["site_name"])),
-        base_url=str(payload["base_url"]),
-        id_headers=tuple(str(item) for item in payload["id_headers"]),
-        search=SearchConfig(
+    payload: dict[str, Any] = json.loads(path.read_text(encoding="utf-8-sig"))
+    search_payload = payload.get("search")
+    search = None
+    if search_payload:
+        search = SearchConfig(
             open_shortcut=str(search_payload["open_shortcut"]),
             input_selector=str(search_payload["input_selector"]),
             submit_selector=str(search_payload["submit_selector"]),
             loaded_markers=tuple(str(item) for item in search_payload["loaded_markers"]),
-        ),
+        )
+
+    return SiteConfig(
+        site_name=str(payload["site_name"]),
+        output_nick=str(payload.get("output_nick", payload["site_name"])),
+        base_url=str(payload["base_url"]),
+        id_headers=tuple(str(item) for item in payload.get("id_headers", [])),
+        search=search,
         fields=tuple(
             FieldConfig(
                 key=str(item["key"]),
-                label=str(item["label"]),
+                label=str(item.get("label", item["key"])),
                 output_header=str(item["output_header"]),
                 type=str(item.get("type", "text")),
             )
             for item in payload["fields"]
         ),
+        mode=str(payload.get("mode", "person_search")),
     )

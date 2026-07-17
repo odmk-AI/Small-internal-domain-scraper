@@ -1,0 +1,68 @@
+{
+  "site_name": "CEA Timetracking",
+  "output_nick": "CEATimetracking",
+  "mode": "taskboard",
+  "base_url": "https://dev.azure.com/wesser/WesserDE/_sprints/taskboard/CEA/WesserDE/Sprint%202026-11",
+  "fields": [
+    {
+      "key": "sprint",
+      "label": "Sprint",
+      "output_header": "Sprint",
+      "type": "text"
+    },
+    {
+      "key": "parent_issue_id",
+      "label": "Parent Issue ID",
+      "output_header": "Parent Issue ID",
+      "type": "text"
+    },
+    {
+      "key": "parent_issue_title",
+      "label": "Parent Issue Title",
+      "output_header": "Parent Issue Title",
+      "type": "text"
+    },
+    {
+      "key": "task_title",
+      "label": "Task Title",
+      "output_header": "Task Title",
+      "type": "text"
+    },
+    {
+      "key": "board_column",
+      "label": "Board Column",
+      "output_header": "Board Column",
+      "type": "text"
+    },
+    {
+      "key": "task_state",
+      "label": "Task State",
+      "output_header": "Task State",
+      "type": "text"
+    },
+    {
+      "key": "assigned_to",
+      "label": "Assigned To",
+      "output_header": "Assigned To",
+      "type": "text"
+    },
+    {
+      "key": "original_estimate",
+      "label": "Original Estimate",
+      "output_header": "Original Estimate",
+      "type": "text"
+    },
+    {
+      "key": "remaining_work",
+      "label": "Remaining Work",
+      "output_header": "Remaining Work",
+      "type": "text"
+    },
+    {
+      "key": "completed_work",
+      "label": "Completed Work",
+      "output_header": "Completed Work",
+      "type": "text"
+    }
+  ]
+}

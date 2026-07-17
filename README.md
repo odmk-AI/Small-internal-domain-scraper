@@ -95,7 +95,7 @@ On first run, a local Chromium browser window opens. Sign in to the internal sit
 ## Command Line Options
 
 ```text
---input        Required. Local input XLSX path.
+--input        Required for person_search mode. Not used for taskboard mode.
 --output       Required. Output XLSX or CSV path.
 --output-dir   Optional. Local output directory. Defaults to local_outputs.
 --config       Optional. Site config JSON path. Defaults to config/sites/wesser.json.
@@ -148,6 +148,9 @@ Example: `config/sites/wesser.json`
 
 `site_name`  
 Human-readable site identifier. Also used to validate checkpoints.
+
+`mode`
+Scraper mode. Use `person_search` for input-list based record lookup or `taskboard` for visible Azure DevOps sprint board extraction.
 
 `output_nick`
 Short project nick appended to generated output and checkpoint filenames, for example `WesserPortal` or `CEATimetracking`.
@@ -207,6 +210,43 @@ No Python change is required if the field appears as a visible label followed by
 ```
 
 If the new site needs a different navigation pattern, keep that change isolated in `src/internal_domain_scraper/scraper.py`.
+
+
+## CEA Timetracking
+
+CEA Timetracking uses `mode: "taskboard"`. It opens the configured Azure DevOps sprint taskboard and exports visible task cards. Unlike the Wesser mode, it does not require an input Excel file.
+
+Example:
+
+```powershell
+.\.venv\Scripts\python.exe .\wesser_strl_scraper.py `
+  --config ".\config\sites\cea_timetracking.json" `
+  --output "Tasks.xlsx"
+```
+
+The generated file is written below `local_outputs/` with date and nick, for example:
+
+```text
+local_outputs/Tasks_2026-07-17-CEATimetracking.xlsx
+```
+
+Current CEA output columns:
+
+- Task ID
+- Sprint
+- Parent Issue ID
+- Parent Issue Title
+- Task Title
+- Board Column
+- Task State
+- Assigned To
+- Original Estimate
+- Remaining Work
+- Completed Work
+
+`Assigned To` is personal data when real employees are assigned. Do not paste real taskboard HTML, names, emails, screenshots, outputs, or checkpoints into external tools.
+
+To change the sprint, edit `base_url` in `config/sites/cea_timetracking.json` to the approved sprint taskboard URL.
 
 ## Checkpoints
 
