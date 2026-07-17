@@ -100,7 +100,7 @@ def scrape_taskboard(page: Any, config: SiteConfig, timeout_ms: int, source_url:
     page.locator(".wit-card.taskboard-card").first.wait_for(state="visible", timeout=timeout_ms)
     _collapse_then_expand_all(page, timeout_ms)
     page.locator(".wit-card.taskboard-card").first.wait_for(state="visible", timeout=timeout_ms)
-    sprint = _first_text(page, ".bolt-dropdown-expandable-button-label") or _sprint_from_url(source_url or page.url)
+    sprint = _sprint_from_url(source_url or page.url) or _sprint_from_page(page)
     year = parse_year_from_text(sprint) or parse_year_from_text(source_url or page.url)
 
     rows = page.locator("tr.full-height")
@@ -161,6 +161,19 @@ def _sprint_from_url(url: str) -> str:
     if match:
         value = match.group(1).replace("_", "-").replace(" ", "-")
         return f"Sprint {value}"
+    return ""
+
+
+def _sprint_from_page(page: Any) -> str:
+    labels = page.locator(".bolt-dropdown-expandable-button-label")
+    for index in range(labels.count()):
+        try:
+            text = labels.nth(index).inner_text(timeout=1000).strip()
+        except Exception:
+            continue
+        match = re.search(r"Sprint\s+20\d{2}[-_ ]?\d{1,2}", text)
+        if match:
+            return match.group(0).replace("_", "-")
     return ""
 
 
