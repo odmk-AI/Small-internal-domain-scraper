@@ -97,15 +97,43 @@ def safe_scrape_one(page: Any, config: SiteConfig, person_key: str, timeout_ms: 
 
 
 def scrape_taskboard(page: Any, config: SiteConfig, timeout_ms: int, source_url: str | None = None) -> list[ScrapeResult]:
+    sprint = _sprint_from_url(source_url or page.url) or _sprint_from_page(page)
+    _wait_for_taskboard_sprint(page, sprint, timeout_ms)
     page.locator(".wit-card.taskboard-card").first.wait_for(state="visible", timeout=timeout_ms)
     _collapse_then_expand_all(page, timeout_ms)
-    page.locator(".wit-card.taskboard-card").first.wait_for(state="visible", timeout=timeout_ms)
-    sprint = _sprint_from_url(source_url or page.url) or _sprint_from_page(page)
+    _wait_for_stable_task_cards(page, timeout_ms)
     year = parse_year_from_text(sprint) or parse_year_from_text(source_url or page.url)
 
+    return _collect_taskboard_results(page, sprint, year, timeout_ms)
+
+
+def _collect_taskboard_results(page: Any, sprint: str, year: str | None, timeout_ms: int) -> list[ScrapeResult]:
+    collected: dict[str, ScrapeResult] = {}
+    unchanged_scrolls = 0
+
+    for _ in range(200):
+        before_count = len(collected)
+        for result in _scrape_visible_taskboard_results(page, sprint, year):
+            collected[result.person_key] = result
+
+        moved = _scroll_taskboard_down(page)
+        _wait_for_stable_task_cards(page, timeout_ms)
+
+        if len(collected) == before_count and not moved:
+            break
+        if len(collected) == before_count:
+            unchanged_scrolls += 1
+            if unchanged_scrolls >= 5:
+                break
+        else:
+            unchanged_scrolls = 0
+
+    return list(collected.values())
+
+
+def _scrape_visible_taskboard_results(page: Any, sprint: str, year: str | None) -> list[ScrapeResult]:
     rows = page.locator("tr.full-height")
     results: list[ScrapeResult] = []
-    seen_task_ids: set[str] = set()
 
     for row_index in range(rows.count()):
         row = rows.nth(row_index)
@@ -124,9 +152,8 @@ def scrape_taskboard(page: Any, config: SiteConfig, timeout_ms: int, source_url:
             for card_index in range(cards.count()):
                 card = cards.nth(card_index)
                 task_id = _attribute(card, "data-itemid") or _first_text(card, ".selectable-text")
-                if not task_id or task_id in seen_task_ids:
+                if not task_id:
                     continue
-                seen_task_ids.add(task_id)
 
                 values = {
                     "year": year,
@@ -145,6 +172,34 @@ def scrape_taskboard(page: Any, config: SiteConfig, timeout_ms: int, source_url:
 
     return results
 
+
+def _scroll_taskboard_down(page: Any) -> bool:
+    return bool(
+        page.evaluate(
+            """() => {
+                const elements = Array.from(document.querySelectorAll('*'));
+                const candidates = elements
+                    .filter(element => {
+                        const style = window.getComputedStyle(element);
+                        const canScroll = /(auto|scroll)/.test(style.overflowY || '');
+                        return canScroll && element.scrollHeight > element.clientHeight + 20;
+                    })
+                    .map(element => ({
+                        element,
+                        remaining: element.scrollHeight - element.clientHeight - element.scrollTop,
+                        area: element.clientWidth * element.clientHeight,
+                        hasTaskCards: Boolean(element.querySelector('.wit-card.taskboard-card[aria-label^="Task,"]')),
+                    }))
+                    .filter(item => item.remaining > 2)
+                    .sort((a, b) => Number(b.hasTaskCards) - Number(a.hasTaskCards) || a.area - b.area);
+
+                const target = candidates[0]?.element || document.scrollingElement || document.documentElement;
+                const before = target.scrollTop;
+                target.scrollTop = Math.min(target.scrollTop + Math.max(300, target.clientHeight * 0.8), target.scrollHeight);
+                return target.scrollTop > before;
+            }"""
+        )
+    )
 
 def safe_scrape_taskboard(
     page: Any, config: SiteConfig, timeout_ms: int, source_url: str | None = None
@@ -177,11 +232,41 @@ def _sprint_from_page(page: Any) -> str:
     return ""
 
 
+def _wait_for_taskboard_sprint(page: Any, sprint: str, timeout_ms: int) -> None:
+    if not sprint:
+        return
+    page.wait_for_function(
+        """expected => {
+            const labels = Array.from(document.querySelectorAll('.bolt-dropdown-expandable-button-label'));
+            return labels.some(label => (label.textContent || '').includes(expected));
+        }""",
+        arg=sprint,
+        timeout=timeout_ms,
+    )
+
+
 def _collapse_then_expand_all(page: Any, timeout_ms: int) -> None:
     _click_button_text(page, "Collapse all", timeout_ms)
-    page.wait_for_timeout(250)
+    _wait_for_stable_task_cards(page, timeout_ms)
     _click_button_text(page, "Expand all", timeout_ms)
-    page.wait_for_timeout(500)
+    _wait_for_stable_task_cards(page, timeout_ms)
+
+
+def _wait_for_stable_task_cards(page: Any, timeout_ms: int) -> None:
+    deadline = time.time() + min(timeout_ms / 1000, 10)
+    previous_count: int | None = None
+    stable_checks = 0
+
+    while time.time() < deadline:
+        count = page.locator('.wit-card.taskboard-card[aria-label^="Task,"]').count()
+        if count == previous_count:
+            stable_checks += 1
+            if stable_checks >= 3:
+                return
+        else:
+            previous_count = count
+            stable_checks = 0
+        page.wait_for_timeout(250)
 
 
 def _click_button_text(page: Any, text: str, timeout_ms: int) -> bool:
@@ -231,3 +316,5 @@ def _field_value(card: Any, label: str) -> str:
 
 def _remaining_work(card: Any) -> str:
     return _first_text(card, ".remaining-work .text-ellipsis")
+
+
