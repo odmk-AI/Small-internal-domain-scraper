@@ -117,6 +117,7 @@ The code does not intentionally write:
 .venv/
 .browser-profile/
 .wesser-browser-profile/
+.edge-browser-profile/
 local_outputs/
 *.xlsx
 *.xls
@@ -139,7 +140,7 @@ If config changes materially, old checkpoints are ignored. This reduces stale or
 
 ### Local Browser Profile Isolation
 
-The scraper uses a dedicated local browser profile directory by default. This helps keep the automation session separate from a user’s normal browser profile.
+The scraper uses a dedicated local Microsoft Edge browser profile directory by default (`.edge-browser-profile/`). This helps keep the automation session separate from a user’s normal browser profile.
 
 ## Organisational Measures Required Before Production Use
 

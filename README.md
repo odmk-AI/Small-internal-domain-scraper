@@ -90,7 +90,7 @@ Using the installed console script:
   --output "Ausgabe_Werte.xlsx"
 ```
 
-On first run, a local Chromium browser window opens. Sign in to the internal site in that browser. If the script prompts you, press Enter after the search page is visible.
+On first run, a local Microsoft Edge browser window opens. Sign in to the internal site in that browser. If the script prompts you, press Enter after the search page is visible.
 
 ## Command Line Options
 
@@ -100,13 +100,19 @@ On first run, a local Chromium browser window opens. Sign in to the internal sit
 --output-dir   Optional. Local output directory. Defaults to local_outputs.
 --config       Optional. Site config JSON path. Defaults to config/sites/wesser.json.
 --sheet        Optional. Input worksheet name. Defaults to first worksheet.
---profile-dir  Optional. Local browser profile directory. Defaults to .browser-profile.
+--profile-dir  Optional. Local browser profile directory. Defaults to .edge-browser-profile.
+--browser-channel Optional. Playwright browser channel. Defaults to msedge.
 --timeout-ms   Optional. Per-record timeout in milliseconds. Defaults to 15000.
 --headless     Optional. Run browser without UI after a valid login exists.
 --csv          Optional. Write an additional CSV output.
 --years        Optional. Taskboard-only comma-separated year filter, for example 2024,2025.
 ```
 
+
+
+### Browser
+
+The scraper defaults to Microsoft Edge via Playwright channel `msedge` and stores login state in `.edge-browser-profile/` unless another `--profile-dir` is provided. To override the channel, pass `--browser-channel`, for example `--browser-channel chromium`.
 
 ### Local Output Directory Rules
 
@@ -275,6 +281,7 @@ The repository intentionally ignores:
 - `.venv/`
 - `.browser-profile/`
 - `.wesser-browser-profile/`
+- `.edge-browser-profile/`
 - `local_outputs/`
 - `*.xlsx`
 - `*.xls`

@@ -72,9 +72,14 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--sheet", default=None, help="Optional input worksheet name.")
     parser.add_argument(
         "--profile-dir",
-        default=".browser-profile",
+        default=".edge-browser-profile",
         type=Path,
         help="Local browser profile directory. Sign in there on first run.",
+    )
+    parser.add_argument(
+        "--browser-channel",
+        default="msedge",
+        help="Playwright browser channel. Defaults to Microsoft Edge (msedge).",
     )
     parser.add_argument("--timeout-ms", default=15000, type=int)
     parser.add_argument("--headless", action="store_true", help="Use only after a valid login exists in the profile.")
@@ -132,6 +137,7 @@ def main() -> int:
     with sync_playwright() as playwright:
         context = playwright.chromium.launch_persistent_context(
             user_data_dir=str(args.profile_dir.resolve()),
+            channel=args.browser_channel,
             headless=args.headless,
             viewport={"width": 1400, "height": 1000},
         )
