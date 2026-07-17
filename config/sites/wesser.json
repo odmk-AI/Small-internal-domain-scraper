@@ -1,5 +1,6 @@
 {
   "site_name": "Wesser",
+  "output_nick": "WesserPortal",
   "base_url": "https://my.wesser.de/FundraiserList",
   "id_headers": [
     "PseudoID",

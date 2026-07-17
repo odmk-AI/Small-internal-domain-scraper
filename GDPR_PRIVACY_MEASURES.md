@@ -77,7 +77,7 @@ Fields are explicitly listed in `config/sites/*.json`. The scraper extracts only
 
 ### Dedicated Local Output Directory
 
-Generated output files, optional CSV exports, and checkpoints must be written inside the configured local output directory. The default is `local_outputs/`, which is ignored by Git. Bare output filenames are automatically resolved into this directory. Absolute output paths or relative traversal paths outside the configured output directory are rejected.
+Generated output files, optional CSV exports, and checkpoints must be written inside the configured local output directory. The default is `local_outputs/`, which is ignored by Git. Bare output filenames are automatically resolved into this directory. Absolute output paths or relative traversal paths outside the configured output directory are rejected. Output filenames also include the run date and configured project nick, so local files can be attributed to the correct extraction context without opening the file.
 
 ### Pseudonymous Input Support
 

@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import argparse
+import re
 import sys
+from datetime import date
 from pathlib import Path
 
 from playwright.sync_api import sync_playwright
@@ -13,16 +15,31 @@ from .models import ScrapeResult
 from .scraper import safe_scrape_one
 
 
-def resolve_local_output_path(requested_path: Path, output_dir: Path) -> Path:
+def normalise_filename_part(value: str) -> str:
+    cleaned = re.sub(r"[^A-Za-z0-9_.-]+", "-", value.strip())
+    return cleaned.strip(".-_") or "Output"
+
+
+def add_date_and_nick(path: Path, output_nick: str, run_date: date | None = None) -> Path:
+    current_date = run_date or date.today()
+    nick = normalise_filename_part(output_nick)
+    stem = normalise_filename_part(path.stem)
+    suffix = path.suffix or ".xlsx"
+    return path.with_name(f"{stem}_{current_date.isoformat()}-{nick}{suffix}")
+
+
+def resolve_local_output_path(requested_path: Path, output_dir: Path, output_nick: str) -> Path:
     local_output_dir = output_dir.resolve()
     if str(local_output_dir).startswith("\\"):
         raise ValueError("Output directory must be a local path, not a network/UNC path.")
     local_output_dir.mkdir(parents=True, exist_ok=True)
 
-    if requested_path.is_absolute():
-        candidate = requested_path.resolve()
+    dated_path = add_date_and_nick(requested_path, output_nick)
+
+    if dated_path.is_absolute():
+        candidate = dated_path.resolve()
     else:
-        candidate = (local_output_dir / requested_path).resolve()
+        candidate = (local_output_dir / dated_path).resolve()
 
     try:
         candidate.relative_to(local_output_dir)
@@ -70,8 +87,8 @@ def main() -> int:
     config = load_site_config(args.config.resolve())
     input_xlsx = args.input.resolve()
     try:
-        output_path = resolve_local_output_path(args.output, args.output_dir)
-        csv_path = resolve_local_output_path(args.csv, args.output_dir) if args.csv else None
+        output_path = resolve_local_output_path(args.output, args.output_dir, config.output_nick)
+        csv_path = resolve_local_output_path(args.csv, args.output_dir, config.output_nick) if args.csv else None
     except ValueError as exc:
         print(str(exc), file=sys.stderr)
         return 2

@@ -21,6 +21,8 @@ No names, addresses, email addresses, full profile text, HTML dumps, screenshots
 
 Generated outputs and checkpoints are constrained to a dedicated local output directory. The default is `local_outputs/`, which is ignored by Git and should remain local to the operator's machine.
 
+Output filenames automatically include the run date and configured project nick, for example `Ausgabe_Werte_2026-07-17-WesserPortal.xlsx`. Current nicks are `WesserPortal` for Wesser Portal and `CEATimetracking` for the planned CEA Timetracking configuration.
+
 ## Repository Layout
 
 ```text
@@ -109,8 +111,8 @@ On first run, a local Chromium browser window opens. Sign in to the internal sit
 
 `--output` and `--csv` are constrained to the configured local output directory:
 
-- Bare filenames such as `Ausgabe_Werte.xlsx` are written to `local_outputs/Ausgabe_Werte.xlsx`.
-- Relative paths such as `monthly/Ausgabe_Werte.xlsx` are written under `local_outputs/monthly/`.
+- Bare filenames such as `Ausgabe_Werte.xlsx` are written to `local_outputs/Ausgabe_Werte_YYYY-MM-DD-Nick.xlsx`.
+- Relative paths such as `monthly/Ausgabe_Werte.xlsx` are written under `local_outputs/monthly/` with the same date-and-nick suffix.
 - Absolute paths or `..` traversal outside the output directory are rejected.
 - Checkpoints are written beside the output file inside the same local output directory.
 
@@ -146,6 +148,9 @@ Example: `config/sites/wesser.json`
 
 `site_name`  
 Human-readable site identifier. Also used to validate checkpoints.
+
+`output_nick`
+Short project nick appended to generated output and checkpoint filenames, for example `WesserPortal` or `CEATimetracking`.
 
 `base_url`  
 Search page URL used as fallback if the keyboard shortcut does not open the search screen.
