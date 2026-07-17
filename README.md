@@ -248,7 +248,7 @@ Current CEA output columns:
 
 `Assigned To` is personal data when real employees are assigned. Do not paste real taskboard HTML, names, emails, screenshots, outputs, or checkpoints into external tools.
 
-To collect more years, add approved sprint taskboard URLs to `taskboard_urls` in `config/sites/cea_timetracking.json`. Each exported row includes `Year`, parsed from the sprint label or URL. Use `--years 2025,2026` to run only selected years.
+`config/sites/cea_timetracking.json` currently contains sprintboard URLs from `Sprint 2024-18` through `Sprint 2026-11`, assuming sprint numbers continue to `26` for full years. Each exported row includes `Year`, parsed from the sprint label or URL. Use `--years 2025,2026` to run only selected years. To collect later years or adjust year-end sprint numbers, update the approved URLs in `taskboard_urls`.
 
 ## Checkpoints
 
